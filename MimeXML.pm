@@ -1,4 +1,4 @@
-# $Id: MimeXML.pm,v 1.12 2000/04/26 13:13:26 matt Exp $
+# $Id: MimeXML.pm,v 1.2 2000/05/10 21:23:41 matt Exp $
 
 package Apache::MimeXML;
 
@@ -6,7 +6,7 @@ use strict;
 use Apache::Constants qw(:common);
 use Apache::File;
 
-$Apache::MimeXML::VERSION = '0.07';
+$Apache::MimeXML::VERSION = '0.08';
 
 my $feff = chr(0xFE) . chr(0xFF);
 my $fffe = chr(0xFF) . chr(0xFE);
@@ -48,24 +48,29 @@ my @ebasci = (
 sub handler {
 	my $r = shift;
 	
-	my $type = $r->dir_config('XMLMimeType') || 'application/xml';
-	
+	return DECLINED unless -e $r->finfo;
+	return DECLINED if -d $r->finfo;
+		
 	my $encoding = check_for_xml($r->filename);
 	
 	if ($encoding) {
+		my $type = $r->dir_config('XMLMimeType') || 'application/xml';
+
 		if ($encoding eq 'utf-16-be') {
 			$encoding = $r->dir_config('XMLUtf16EncodingBE') || 'utf-16';
+			$type =~ s/^text\/xml$/application\/xml/;
 		}
 		elsif ($encoding eq 'utf-16-le') {
 			$encoding = $r->dir_config('XMLUtf16EncodingLE') || 'utf-16-le';
+			$type =~ s/^text\/xml$/application\/xml/;
 		}
 		
 		$r->notes('is_xml', 1);
 		$r->push_handlers('PerlFixupHandler', 
 				sub { 
-					my $r = shift; 
-					$r->content_type($type); 
-					$r->content_encoding($encoding); 
+					my $r = shift;
+					$r->content_type("$type; charset=$encoding");
+					return OK;
 				});
 	}
 
