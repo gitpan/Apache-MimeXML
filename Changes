@@ -14,3 +14,7 @@ Revision history for Perl extension Apache::MimeXML.
 
 0.04  Sun Apr 23 2000
 	- Use $r->content_encoding rather than embed in content-type.
+
+0.05  Mon Apr 24 2000
+	- Added ability to use from other modules
+	- Some other minor tweaks

@@ -1,4 +1,4 @@
-# $Id: MimeXML.pm,v 1.4 2000/04/23 09:48:31 matt Exp $
+# $Id: MimeXML.pm,v 1.8 2000/04/24 14:22:16 matt Exp $
 
 package Apache::MimeXML;
 
@@ -6,7 +6,7 @@ use strict;
 use Apache::Constants qw(:common);
 use Apache::File;
 
-$Apache::MimeXML::VERSION = '0.04';
+$Apache::MimeXML::VERSION = '0.05';
 
 my $feff = chr(0xFE) . chr(0xFF);
 my $fffe = chr(0xFF) . chr(0xFE);
@@ -45,36 +45,74 @@ my @ebasci = (
 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
 0x38, 0x39, 0xB3, 0xDB, 0xDC, 0xD9, 0xDA, 0x9F);
 
-
 sub handler {
 	my $r = shift;
 	
 	my $type = $r->dir_config('XMLMimeType') || 'application/xml';
 	
-	my $fh = Apache::File->new($r->filename) or return DECLINED;
-	binmode $fh;
-	my $firstline;
-	sysread($fh, $firstline, 200); # Read 200 chars. This is a guestimate...
-	$fh->close;
+	my $encoding = check_for_xml($r->filename);
 	
-	$r->notes('is_xml', 1);
+	if ($encoding) {
+		if ($encoding eq 'utf-16-be') {
+			$encoding = $r->dir_config('XMLUtf16EncodingBE') || 'utf-16';
+		}
+		elsif ($encoding eq 'utf-16-le') {
+			$encoding = $r->dir_config('XMLUtf16EncodingLE') || 'utf-16-le';
+		}
+		
+		$r->content_type($type);
+		$r->content_encoding($encoding);
+		$r->notes('is_xml', 1);
+		return OK;
+	}
+	else {
+		$r->notes('is_xml', 0);
+		return DECLINED;
+	}
+}
+
+sub check_for_xml {
+	my $filename = shift;
+	
+	my $firstline;
+	
+	my $fh;
+	if (ref($filename) && UNIVERSAL::isa($filename, 'IO::Handler')) {
+		$fh = $filename;
+		binmode $fh;
+		sysread($fh, $firstline, 200); # Read 200 bytes. This is a guestimate...
+	}
+	else {
+		eval {
+			$fh = *{$filename}{IO};
+			binmode $fh;
+			sysread($fh, $firstline, 200); # Read 200 bytes. This is a guestimate...
+		};
+		if ($@) {
+			eval {
+				$fh = do { local *FH; };
+				open($fh, $filename) or die "Open failed: $!";
+				binmode $fh;
+				sysread($fh, $firstline, 200); # Read 200 bytes. This is a guestimate...
+				close $fh;
+			};
+			if ($@) {
+				warn "failed? $@\n";
+				return;
+			}
+		}
+	}
 	
 	if (substr($firstline, 0, 2) eq $feff) {
 		# Probably utf-16
 		if ($firstline =~ m/^$feff\x00<\x00\?\x00x\x00m\x00l/) {
-			my $bigendian = $r->dir_config('XMLUtf16EncodingBE') || 'utf-16';
-			$r->content_type("$type");
-			$r->content_encoding("$bigendian");
-			return OK;
+			return 'utf-16-be';
 		}
 	}
 	elsif (substr($firstline, 0, 2) eq $fffe) {
 		# Probably utf-16-little-endian...
 		if ($firstline =~ m/^$fffe<\x00\?\x00x\x00m\x00l\x00/) {
-			my $littleendian = $r->dir_config('XMLUtf16EncodingLE') || 'utf-16-le';
-			$r->content_type("$type");
-			$r->content_encoding("$littleendian");
-			return OK;
+			return 'utf-16-le';
 		}
 	}
 	elsif (substr($firstline, 0, 1) eq chr(0x4C)) {
@@ -93,9 +131,7 @@ sub handler {
 			if ($attribs =~ m/\x85\x95\x83\x96\x84\x89\x95\x87[$ws]*\x7e[$ws]*(\x7f|\x7d)(.*?)\1/s) {
 				my $encoding = $2;
 				$encoding =~ s/(.)/chr($ebasci[ord($1)])/eg;
-				$r->content_type("$type");
-				$r->content_encoding("$encoding");
-				return OK;
+				return $encoding;
 			}
 		}
 	}
@@ -103,23 +139,16 @@ sub handler {
 		if ($firstline =~ m/^<\?xml(.*?)\?>/s) {
 			my $attribs = $1;
 			if ($attribs =~ m/encoding[\s]*=[\s]*(["'])(.*?)\1/s) {
-				$r->content_type("$type");
-				$r->content_encoding("$2");
+				return $2;
 			}
 			else {
 				# Assume utf-8
-				$r->content_type("$type");
-				$r->content_encoding("utf-8");
+				return 'utf-8';
 			}
-			return OK;
 		}
-
-		$r->notes('is_xml', 0);
-		return DECLINED;
 	}
 
-	$r->notes('is_xml', 0);
-	return DECLINED;
+	return;
 }
 
 1;
@@ -156,10 +185,10 @@ allowing you to set various parameters.
 
 Allows you to set the mime type for XML files:
 
-	PerlSetVar XMLMimeType text/xml
+	PerlSetVar XMLMimeType application/xml
 
-That changes the mime type from the default application/xml
-to text/xml. You can use this on a per-directory basis.
+That changes the mime type from the default text/xml to
+application/xml. You can use this on a per-directory basis.
 
 =head2 XMLUtf16EncodingBE
 
@@ -174,6 +203,20 @@ Allows you to set the encoding of little-endian utf-16
 encoded documents. The default is 'utf-16-le'
 
 	PerlSetVar XMLUtf16EncodingLE utf-16-wierd
+
+=head1 Use From Other Modules
+
+If you want to use Apache::MimeXML's detection routines from
+other modules, you can manually call the check_for_xml()
+function yourself, passing in either a filename, or an open
+filehandle. The function returns the encoding
+if it finds that the file contains XML, otherwise it returns
+nothing:
+
+	my $encoding;
+	if ($encoding = Apache::MimeXML::check_for_xml($filename)) {
+		print "$filename is XML in $encoding encoding\n";
+	}
 
 =head1 AUTHOR
 
