@@ -1,0 +1,18 @@
+NAME
+    Apache::MimeXML - mod_perl mime encoding sniffer for XML files
+
+SYNOPSIS
+      PerlTypeHandler Apache::MimeXML
+
+DESCRIPTION
+    An XML Content-Type sniffer. This module reads the encoding
+    attribute in the xml declaration and returns an appropriate
+    content-type heading. If no encoding declaration is found it
+    returns utf-8 or utf-16 depending on the specific encoding.
+
+AUTHOR
+    Matt Sergeant matt@sergeant.org
+
+LICENCE
+    This module is distributed under the same terms as perl itself
+
