@@ -1,4 +1,4 @@
-# $Id: MimeXML.pm,v 1.8 2000/04/24 14:22:16 matt Exp $
+# $Id: MimeXML.pm,v 1.9 2000/04/25 19:08:55 matt Exp $
 
 package Apache::MimeXML;
 
@@ -6,7 +6,7 @@ use strict;
 use Apache::Constants qw(:common);
 use Apache::File;
 
-$Apache::MimeXML::VERSION = '0.05';
+$Apache::MimeXML::VERSION = '0.06';
 
 my $feff = chr(0xFE) . chr(0xFF);
 my $fffe = chr(0xFF) . chr(0xFE);
@@ -63,6 +63,7 @@ sub handler {
 		$r->content_type($type);
 		$r->content_encoding($encoding);
 		$r->notes('is_xml', 1);
+		$r->handler('perl-script') if @{$r->get_handlers('PerlHandler')};
 		return OK;
 	}
 	else {
