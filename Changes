@@ -3,3 +3,9 @@ Revision history for Perl extension Apache::MimeXML.
 0.01  Sat Apr 17 20:56:00 1999
 	- original version; created by h2xs 1.18
 
+0.02  Sun Apr 25 1999
+	- Some bug fixes
+	- Added support for EBCDIC
+	- Addes support for UTF-16-Little Endian
+	- Fixed problem with Red Hat's version of perl
+
