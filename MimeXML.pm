@@ -1,10 +1,10 @@
 package Apache::MimeXML;
 
 use strict;
-use vars qw($VERSION);
 use Apache::Constants qw(:common);
+use Apache::File;
 
-$Apache::MimeXML::VERSION = '0.02';
+$Apache::MimeXML::VERSION = '0.03';
 
 my $feff = chr(0xFE) . chr(0xFF);
 my $fffe = chr(0xFF) . chr(0xFE);
@@ -49,10 +49,13 @@ sub handler {
 	
 	my $type = $r->dir_config('XMLMimeType') || 'application/xml';
 	
-	open(FH, $r->filename) or return DECLINED;
-	binmode FH;
+	my $fh = Apache::File->new($r->filename) or return DECLINED;
+	binmode $fh;
 	my $firstline;
-	sysread(FH, $firstline, 200); # Read 200 chars. This is a guestimate...
+	sysread($fh, $firstline, 200); # Read 200 chars. This is a guestimate...
+	$fh->close;
+	
+	$r->notes('is_xml', 1);
 	
 	if (substr($firstline, 0, 2) eq $feff) {
 		# Probably utf-16
@@ -105,8 +108,12 @@ sub handler {
 			}
 			return OK;
 		}
+
+		$r->notes('is_xml', 0);
 		return DECLINED;
 	}
+
+	$r->notes('is_xml', 0);
 	return DECLINED;
 }
 

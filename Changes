@@ -9,3 +9,5 @@ Revision history for Perl extension Apache::MimeXML.
 	- Addes support for UTF-16-Little Endian
 	- Fixed problem with Red Hat's version of perl
 
+0.03  Sat Apr 22 2000
+	- Added 'is_xml' into apache notes table if we recognise it as xml.
