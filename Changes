@@ -11,3 +11,6 @@ Revision history for Perl extension Apache::MimeXML.
 
 0.03  Sat Apr 22 2000
 	- Added 'is_xml' into apache notes table if we recognise it as xml.
+
+0.04  Sun Apr 23 2000
+	- Use $r->content_encoding rather than embed in content-type.

@@ -1,10 +1,12 @@
+# $Id: MimeXML.pm,v 1.4 2000/04/23 09:48:31 matt Exp $
+
 package Apache::MimeXML;
 
 use strict;
 use Apache::Constants qw(:common);
 use Apache::File;
 
-$Apache::MimeXML::VERSION = '0.03';
+$Apache::MimeXML::VERSION = '0.04';
 
 my $feff = chr(0xFE) . chr(0xFF);
 my $fffe = chr(0xFF) . chr(0xFE);
@@ -61,7 +63,8 @@ sub handler {
 		# Probably utf-16
 		if ($firstline =~ m/^$feff\x00<\x00\?\x00x\x00m\x00l/) {
 			my $bigendian = $r->dir_config('XMLUtf16EncodingBE') || 'utf-16';
-			$r->content_type("$type; charset=$bigendian");
+			$r->content_type("$type");
+			$r->content_encoding("$bigendian");
 			return OK;
 		}
 	}
@@ -69,7 +72,8 @@ sub handler {
 		# Probably utf-16-little-endian...
 		if ($firstline =~ m/^$fffe<\x00\?\x00x\x00m\x00l\x00/) {
 			my $littleendian = $r->dir_config('XMLUtf16EncodingLE') || 'utf-16-le';
-			$r->content_type("$type; charset=$littleendian");
+			$r->content_type("$type");
+			$r->content_encoding("$littleendian");
 			return OK;
 		}
 	}
@@ -86,12 +90,11 @@ sub handler {
 
 			my $ws = '\x40\x05\x0d\x25';
 
-			# Grrr... spent ages debugging this regexp - turns out it's a bug in perl
-			# where you have to use \1 instead of $1...
 			if ($attribs =~ m/\x85\x95\x83\x96\x84\x89\x95\x87[$ws]*\x7e[$ws]*(\x7f|\x7d)(.*?)\1/s) {
 				my $encoding = $2;
 				$encoding =~ s/(.)/chr($ebasci[ord($1)])/eg;
-				$r->content_type("$type; charset=$encoding");
+				$r->content_type("$type");
+				$r->content_encoding("$encoding");
 				return OK;
 			}
 		}
@@ -100,11 +103,13 @@ sub handler {
 		if ($firstline =~ m/^<\?xml(.*?)\?>/s) {
 			my $attribs = $1;
 			if ($attribs =~ m/encoding[\s]*=[\s]*(["'])(.*?)\1/s) {
-				$r->content_type("$type; charset=$2");
+				$r->content_type("$type");
+				$r->content_encoding("$2");
 			}
 			else {
 				# Assume utf-8
-				$r->content_type("$type; charset=utf-8");
+				$r->content_type("$type");
+				$r->content_encoding("utf-8");
 			}
 			return OK;
 		}
