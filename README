@@ -4,7 +4,7 @@ NAME
 SYNOPSIS
     Simply add this line to srm.conf or httpd.conf:
 
-      PerlTypeHandler Apache::MimeXML
+      PerlTypeHandler +Apache::MimeXML
 
     Alternatively add it only for certain files or directories using
     the standard Apache methods. There is about a 30% slowdown for

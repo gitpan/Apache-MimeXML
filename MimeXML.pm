@@ -1,4 +1,4 @@
-# $Id: MimeXML.pm,v 1.9 2000/04/25 19:08:55 matt Exp $
+# $Id: MimeXML.pm,v 1.12 2000/04/26 13:13:26 matt Exp $
 
 package Apache::MimeXML;
 
@@ -6,7 +6,7 @@ use strict;
 use Apache::Constants qw(:common);
 use Apache::File;
 
-$Apache::MimeXML::VERSION = '0.06';
+$Apache::MimeXML::VERSION = '0.07';
 
 my $feff = chr(0xFE) . chr(0xFF);
 my $fffe = chr(0xFF) . chr(0xFE);
@@ -60,16 +60,16 @@ sub handler {
 			$encoding = $r->dir_config('XMLUtf16EncodingLE') || 'utf-16-le';
 		}
 		
-		$r->content_type($type);
-		$r->content_encoding($encoding);
 		$r->notes('is_xml', 1);
-		$r->handler('perl-script') if @{$r->get_handlers('PerlHandler')};
-		return OK;
+		$r->push_handlers('PerlFixupHandler', 
+				sub { 
+					my $r = shift; 
+					$r->content_type($type); 
+					$r->content_encoding($encoding); 
+				});
 	}
-	else {
-		$r->notes('is_xml', 0);
-		return DECLINED;
-	}
+
+	return DECLINED;
 }
 
 sub check_for_xml {
@@ -77,25 +77,23 @@ sub check_for_xml {
 	
 	my $firstline;
 	
-	my $fh;
 	if (ref($filename) && UNIVERSAL::isa($filename, 'IO::Handler')) {
-		$fh = $filename;
+		my $fh = $filename;
 		binmode $fh;
 		sysread($fh, $firstline, 200); # Read 200 bytes. This is a guestimate...
 	}
 	else {
 		eval {
-			$fh = *{$filename}{IO};
+			my $fh = *{$filename}{IO};
 			binmode $fh;
 			sysread($fh, $firstline, 200); # Read 200 bytes. This is a guestimate...
 		};
 		if ($@) {
 			eval {
-				$fh = do { local *FH; };
-				open($fh, $filename) or die "Open failed: $!";
-				binmode $fh;
-				sysread($fh, $firstline, 200); # Read 200 bytes. This is a guestimate...
-				close $fh;
+				open(FH, $filename) or die "Open failed: $!";
+				binmode FH;
+				sysread(FH, $firstline, 200); # Read 200 bytes. This is a guestimate...
+				close FH;
 			};
 			if ($@) {
 				warn "failed? $@\n";
@@ -163,7 +161,7 @@ Apache::MimeXML - mod_perl mime encoding sniffer for XML files
 
 Simply add this line to srm.conf or httpd.conf:
 
-  PerlTypeHandler Apache::MimeXML
+  PerlTypeHandler +Apache::MimeXML
 
 Alternatively add it only for certain files or directories using
 the standard Apache methods. There is about a 30% slowdown for

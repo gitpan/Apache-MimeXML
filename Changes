@@ -21,3 +21,6 @@ Revision history for Perl extension Apache::MimeXML.
 
 0.06  Tue Apr 25 2000
 	- SetHandler perl-script if we detect a PerlHandler
+
+0.07  Wed Apr 16 2000
+	- Do the right thing (tm) instead of what 0.06 did.
